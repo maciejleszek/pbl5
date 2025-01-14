@@ -19,6 +19,7 @@ Make sure you have the following installed on your system:
 
    ```bash
    git clone https://github.com/maciejleszek/pbl5.git
+   git checkout mleszek
    cd tram-switch
    ```
 2. **Install dependencies**
