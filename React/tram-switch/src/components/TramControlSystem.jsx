@@ -3,8 +3,10 @@ import { ThermometerSun } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { useMQTT } from '../contexts/MQTTLocalContext';
 
 const TramControlSystem = () => {
+  const { publishMessage, messages, isConnected } = useMQTT();
   const [selectedSwitch, setSelectedSwitch] = useState(null);
   const [heatingParams, setHeatingParams] = useState({
     tempThreshold: 2,
@@ -30,13 +32,48 @@ const TramControlSystem = () => {
 
   const toggleSwitchPosition = (switchId) => {
     if (!hasPermission('switch_control')) return;
+    const message = {
+      switchId,
+      action: 'toggle',
+      timestamp: new Date().toISOString()
+    };
+    publishMessage(`tram/switches/${switchId}/position`, message);
     addLog(`Zmiana położenia zwrotnicy ${switchId}`);
   };
 
   const toggleHeating = (forced) => {
     if (!hasPermission('heating_control')) return;
+    const message = {
+      action: forced ? 'force_on' : 'auto',
+      timestamp: new Date().toISOString()
+    };
+    publishMessage('tram/heating/control', message);
     setHeatingParams(prev => ({ ...prev, isHeatingForced: forced }));
     addLog(`${forced ? 'Wymuszenie' : 'Wyłączenie'} ogrzewania`);
+  };
+
+  // Update the heating parameters method
+  const updateHeatingParams = (key, value) => {
+    if (!hasPermission('params_control')) return;
+    
+    // Convert input to appropriate number type
+    const numericValue = key.includes('Time') 
+      ? parseInt(value, 10) 
+      : parseFloat(value);
+    
+    const message = {
+      [key]: numericValue,
+      timestamp: new Date().toISOString()
+    };
+    
+    publishMessage('tram/heating/params', message);
+    
+    setHeatingParams(prev => ({ 
+      ...prev, 
+      [key]: numericValue 
+    }));
+    
+    addLog(`Zmiana parametru ${key}: ${numericValue}`);
   };
 
   const hasPermission = (permission) => {
@@ -95,16 +132,146 @@ const TramControlSystem = () => {
     return <div ref={mapRef} className="map-container" />;
   };
 
+  const renderMQTTMessages = () => (
+    <TabsContent value="mqtt">
+      <Card>
+        <CardHeader>
+          <CardTitle>MQTT Messages</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {messages.map((msg, index) => (
+              <div key={index} className="log-entry">
+                <span className="log-timestamp">{msg.timestamp.toLocaleString()}</span>
+                <span>{msg.topic}: {JSON.stringify(msg.payload)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4">
+            Connection Status: {isConnected ? '✅ Connected' : '❌ Disconnected'}
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  );
+
   return (
     <div className="p-4 max-w-6xl mx-auto">
-      <Tabs defaultValue="map" className="space-y-4">
+      <Tabs defaultValue="home" className="space-y-4">
         <TabsList className="tabs-list">
+          <TabsTrigger value="home" className="tab-trigger">Strona główna</TabsTrigger>
           <TabsTrigger value="map" className="tab-trigger">Mapa</TabsTrigger>
           <TabsTrigger value="heating" className="tab-trigger">Ogrzewanie</TabsTrigger>
           <TabsTrigger value="settings" className="tab-trigger">Ustawienia</TabsTrigger>
           <TabsTrigger value="logs" className="tab-trigger">Logi</TabsTrigger>
+          <TabsTrigger value="mqtt" className="tab-trigger">MQTT</TabsTrigger>
         </TabsList>
 
+        {/* Home Page Tab */}
+        <TabsContent value="home">
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>System Sterowania Tramwajami</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gradient-to-r from-blue-100 to-blue-200 p-6 rounded-lg shadow-md">
+                <h2 className="text-2xl font-bold mb-4 text-blue-900">Witaj w Systemie Zdalnego Sterowania</h2>
+                <p className="text-blue-800 mb-4">
+                  Kompleksowe narzędzie do monitorowania i zarządzania infrastrukturą tramwajową.
+                </p>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h3 className="font-semibold text-blue-700 mb-2">Mapa Rozjazdów</h3>
+                    <p className="text-sm text-blue-600">Podgląd aktualnego położenia zwrotnic</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h3 className="font-semibold text-blue-700 mb-2">Sterowanie Ogrzewaniem</h3>
+                    <p className="text-sm text-blue-600">Zaawansowane opcje kontroli temperatury</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h3 className="font-semibold text-blue-700 mb-2">Logi Operacji</h3>
+                    <p className="text-sm text-blue-600">Pełna historia zmian systemowych</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Heating Settings Tab */}
+        <TabsContent value="heating">
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>Sterowanie Ogrzewaniem</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {hasPermission('heating_control') ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <ThermometerSun size={24} className="text-blue-500" />
+                    <div>
+                      <p>Status: {heatingParams.isHeatingForced ? 'Wymuszone' : 'Automatyczne'}</p>
+                      <div className="mt-2 space-x-2">
+                        <button
+                          onClick={() => toggleHeating(true)}
+                          className="btn btn-danger"
+                        >
+                          Wymuś włączenie
+                        </button>
+                        <button
+                          onClick={() => toggleHeating(false)}
+                          className="btn btn-primary"
+                        >
+                          Tryb auto
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-red-500">Brak uprawnień do sterowania ogrzewaniem</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings">
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>Parametry Ogrzewania</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {hasPermission('params_control') ? (
+                <div className="space-y-4">
+                  {Object.keys(heatingParams)
+                    .filter(key => key !== 'isHeatingForced')
+                    .map(key => (
+                      <div key={key} className="grid grid-cols-2 gap-4 items-center">
+                        <label className="text-blue-800 font-medium">
+                          {key === 'tempThreshold' && 'Próg temperaturowy (°C)'}
+                          {key === 'hysteresis' && 'Histereza (°C)'}
+                          {key === 'minHeatingTime' && 'Min. czas ogrzewania (min)'}
+                          {key === 'maxHeatingTime' && 'Max. czas ogrzewania (min)'}
+                        </label>
+                        <input
+                          type="number"
+                          value={heatingParams[key]}
+                          onChange={(e) => updateHeatingParams(key, e.target.value)}
+                          className="input border-blue-300 focus:border-blue-500"
+                          step={key.includes('Time') ? 1 : 0.1}
+                        />
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-red-500">Brak uprawnień do zmiany parametrów</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Map Tab */}
         <TabsContent value="map">
           <Card className="card">
             <CardHeader>
@@ -137,107 +304,8 @@ const TramControlSystem = () => {
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="heating">
-          <Card className="card">
-            <CardHeader>
-              <CardTitle>Sterowanie ogrzewaniem</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {hasPermission('heating_control') ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <ThermometerSun size={24} />
-                    <div>
-                      <p>Status: {heatingParams.isHeatingForced ? 'Wymuszone' : 'Automatyczne'}</p>
-                      <div className="mt-2 space-x-2">
-                        <button
-                          onClick={() => toggleHeating(true)}
-                          className="btn btn-danger"
-                        >
-                          Wymuś włączenie
-                        </button>
-                        <button
-                          onClick={() => toggleHeating(false)}
-                          className="btn btn-primary"
-                        >
-                          Tryb auto
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p>Brak uprawnień</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings">
-          <Card className="card">
-            <CardHeader>
-              <CardTitle>Parametry ogrzewania</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {hasPermission('params_control') ? (
-                <div className="space-y-4">
-                  <div>
-                    <label>Próg temperaturowy (°C)</label>
-                    <input
-                      type="number"
-                      value={heatingParams.tempThreshold}
-                      onChange={(e) => {
-                        setHeatingParams(prev => ({ ...prev, tempThreshold: parseFloat(e.target.value) }));
-                        addLog(`Zmiana progu temperaturowego: ${e.target.value}°C`);
-                      }}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label>Histereza (°C)</label>
-                    <input
-                      type="number"
-                      value={heatingParams.hysteresis}
-                      onChange={(e) => {
-                        setHeatingParams(prev => ({ ...prev, hysteresis: parseFloat(e.target.value) }));
-                        addLog(`Zmiana histerezy: ${e.target.value}°C`);
-                      }}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label>Min. czas ogrzewania (min)</label>
-                    <input
-                      type="number"
-                      value={heatingParams.minHeatingTime}
-                      onChange={(e) => {
-                        setHeatingParams(prev => ({ ...prev, minHeatingTime: parseInt(e.target.value) }));
-                        addLog(`Zmiana min. czasu ogrzewania: ${e.target.value}min`);
-                      }}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label>Max. czas ogrzewania (min)</label>
-                    <input
-                      type="number"
-                      value={heatingParams.maxHeatingTime}
-                      onChange={(e) => {
-                        setHeatingParams(prev => ({ ...prev, maxHeatingTime: parseInt(e.target.value) }));
-                        addLog(`Zmiana max. czasu ogrzewania: ${e.target.value}min`);
-                      }}
-                      className="input"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <p>Brak uprawnień</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
+                
+        {/* Logs Tab */}
         <TabsContent value="logs">
           <Card className="card">
             <CardHeader>
@@ -255,6 +323,7 @@ const TramControlSystem = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        {renderMQTTMessages()}
       </Tabs>
     </div>
   );
