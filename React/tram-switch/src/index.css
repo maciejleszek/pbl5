@@ -90,6 +90,7 @@
   
   .map-container {
     height: 24rem;
+    margin-top: 2rem;
     border-radius: 0.75rem;
     overflow: hidden;
     border: 1.5px solid var(--border);
