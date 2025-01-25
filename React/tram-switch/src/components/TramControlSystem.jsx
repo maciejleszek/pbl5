@@ -167,32 +167,41 @@ const TramControlSystem = () => {
           <TabsTrigger value="mqtt" className="tab-trigger">MQTT</TabsTrigger>
         </TabsList>
 
-        {/* Home Page Tab */}
+        { /* Home Page Tab */ }
         <TabsContent value="home">
           <Card className="card">
-            <CardHeader>
-              <CardTitle>System Sterowania Tramwajami</CardTitle>
-            </CardHeader>
             <CardContent>
-              <div className="bg-gradient-to-r from-blue-100 to-blue-200 p-6 rounded-lg shadow-md">
-                <h2 className="text-2xl font-bold mb-4 text-blue-900">Witaj w Systemie Zdalnego Sterowania</h2>
-                <p className="text-blue-800 mb-4">
+              <div className="home-container">
+                <h2 className="home-title">Witaj w Systemie Zdalnego Sterowania</h2>
+                <p className="home-description">
                   Kompleksowe narzędzie do monitorowania i zarządzania infrastrukturą tramwajową.
                 </p>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h3 className="font-semibold text-blue-700 mb-2">Mapa Rozjazdów</h3>
-                    <p className="text-sm text-blue-600">Podgląd aktualnego położenia zwrotnic</p>
+                <TabsList className="home-grid">
+                  <div className="home-card">
+                    <h3 className="home-card-title">
+                      <TabsTrigger value="map" className="home-btn">Mapa Rozjazdów</TabsTrigger>
+                    </h3>
+                    <p className="home-card-description">Podgląd aktualnego położenia zwrotnic</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h3 className="font-semibold text-blue-700 mb-2">Sterowanie Ogrzewaniem</h3>
-                    <p className="text-sm text-blue-600">Zaawansowane opcje kontroli temperatury</p>
+                  <div className="home-card">
+                    <h3 className="home-card-title">
+                      <TabsTrigger value="heating" className="home-btn">Sterowanie Ogrzewaniem</TabsTrigger>
+                    </h3>
+                    <p className="home-card-description">Zaawansowane opcje kontroli temperatury</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h3 className="font-semibold text-blue-700 mb-2">Logi Operacji</h3>
-                    <p className="text-sm text-blue-600">Pełna historia zmian systemowych</p>
+                  <div className="home-card">
+                    <h3 className="home-card-title">
+                      <TabsTrigger value="logs" className="home-btn">Logi Operacji</TabsTrigger>
+                    </h3>
+                    <p className="home-card-description">Pełna historia zmian systemowych</p>
                   </div>
-                </div>
+                  <div className="home-card">
+                    <h3 className="home-card-title">
+                      <TabsTrigger value="settings" className="home-btn">Ustawienia</TabsTrigger>
+                    </h3>
+                    <p className="home-card-description">Dostosuj parametry systemu</p>
+                  </div>
+                </TabsList>
               </div>
             </CardContent>
           </Card>
